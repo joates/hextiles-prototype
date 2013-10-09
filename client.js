@@ -187,9 +187,8 @@
     playerMesh.update(delta)
 
     cell = get_tile_coord(16)
-
-    if (cell.x !== last_cell.x || cell.y !== last_cell.y)
-      refresh_vbo(cell.x, cell.y)
+    if (cell.x !== last_cell.x ||
+        cell.y !== last_cell.y) refresh_vbo(cell)
 
     TWEEN.update()
     stats.update()
@@ -331,12 +330,12 @@
     return new THREE.Vector2(Math.floor(grid.x / s), Math.floor(grid.y / s))
   }
 
-  function refresh_vbo(cx, cy) {
-    console.log('tile: '+(cx<0?cx:' '+cx)+', '+(cy<0?cy:' '+cy))
+  function refresh_vbo(c) {
+    console.log('tile: '+(c.x<0?c.x:' '+c.x)+', '+(c.y<0?c.y:' '+c.y))
 
     // manage the tile cache.
-    for (var sy=cy+2; sy>=cy-2; sy--) {
-      for (var sx=cx-2; sx<=cx+2; sx++) {
+    for (var sy=c.y+2; sy>=c.y-2; sy--) {
+      for (var sx=c.x-2; sx<=c.x+2; sx++) {
         var tile_id = sx.toString() + '_' + sy.toString()
         // outer grid (5x5)
         if (! tile_cache.has(tile_id))
@@ -345,8 +344,8 @@
 
         // inner grid (3x3)
         // fetch tile directly from cache.
-        if (sx > cx-2 && sx < cx+2 &&
-            sy > cy-2 && sy < cy+2) scene_add_tile(tile_id)
+        if (sx > c.x-2 && sx < c.x+2 &&
+            sy > c.y-2 && sy < c.y+2) scene_add_tile(tile_id)
       }
     }
   }
@@ -358,6 +357,6 @@
       //console.log('added: %s', tile_id, tile)
     } else setTimeout(function() {
       scene_add_tile(tile_id)
-    }, 10)
+    }, Math.floor(Math.random() * 8) + 8)
   }
 
