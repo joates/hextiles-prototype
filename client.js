@@ -25,7 +25,7 @@
     , Hex_Geo = require('./lib/Hex_Geo.js')
     , Hex_VBO = require('./lib/Hex_VBO.js')
     , LRU = require("lru-cache")
-    , cache_opts = { max: 25, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
+    , cache_opts = { max: 21, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
     , tile_cache = LRU(cache_opts)  // store most recently visited tiles.
 
   var R = 80
@@ -336,16 +336,21 @@
     // manage the tile cache.
     for (var sy=c.y+2; sy>=c.y-2; sy--) {
       for (var sx=c.x-2; sx<=c.x+2; sx++) {
-        var tile_id = sx.toString() + '_' + sy.toString()
-        // outer grid (5x5)
-        if (! tile_cache.has(tile_id))
-          // pre-fetch a tile that may be needed soon.
-          socket.emit('tile', { x:sx, y:sy })
+        // exclude the 4 outer corner tiles
+        if (! (sy==c.y+2 && sx==c.x-2 || sx==c.x+2) ||
+            ! (sy==c.y-2 && sx==c.x-2 || sx==c.x+2)) {
+          var tile_id = sx.toString() + '_' + sy.toString()
+          // outer grid (5x5)
+          if (! tile_cache.has(tile_id))
+            // pre-fetch a tile that may be needed soon.
+            socket.emit('tile', { x:sx, y:sy })
 
         // inner grid (3x3)
         // fetch tile directly from cache.
-        if (sx > c.x-2 && sx < c.x+2 &&
-            sy > c.y-2 && sy < c.y+2) scene_add_tile(tile_id)
+        }
+        if (sx > c.x-2 && sx < c.x+2 && sy > c.y-2 && sy < c.y+2) {
+          scene_add_tile(tile_id)
+        }
       }
     }
   }
