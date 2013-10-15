@@ -7,7 +7,8 @@
     , ss = require('socket.io-stream')
     , fs = require('fs')
     , Tile = require('./lib/Tile.js')
-    , tilemap = []
+    , tile_map = []
+    , re = new RegExp('\.js$', 'i')
 
   io.set('log level', 0)   // quiet mode.
   server.listen(8000)     // start http service.
@@ -15,7 +16,8 @@
   // process incoming requests.
   function handler(req, res) {
     if (req.url == '/') req.url = '/public/index.html'
-    else res.setHeader('Content-Type', 'application/javascript')
+    else if (re.test(req.url))
+      res.setHeader('Content-Type', 'application/javascript')
     var rs = fs.createReadStream(__dirname + req.url)
     rs.pipe(res)
   }
@@ -25,11 +27,11 @@
 
     client.on('tile', function(data) {
       var tx = data.x || 0, ty = data.y || 0
-      if (tilemap[tx] === undefined) tilemap[tx] = []
-      if (tilemap[tx][ty] === undefined)
-        tilemap[tx][ty] = new Tile().size(16).addNoise().addBlur()
+      if (tile_map[tx] === undefined) tile_map[tx] = []
+      if (tile_map[tx][ty] === undefined)
+        tile_map[tx][ty] = new Tile().size(16).addNoise().addBlur()
       // send tile data (heightmap stream).
-      ss(client).emit('tile', tilemap[tx][ty].data, { x:tx, y:ty })
+      ss(client).emit('tile', tile_map[tx][ty].data, { x:tx, y:ty })
     })
 
     client.on('disconnect', function() {

@@ -43,16 +43,19 @@
       build_terrain(stream, pos.x, pos.y)
     })
 
+    // initial terrain tile.
+    socket.emit('tile', { x:0, y:0 })
+
     init()
-    animate()
+    start()
 
     // request some terrain tiles (initial 3x3 grid).
-    for (var y=1; y>=-1; y--) {
+    for (var y=-1; y<=1; y++) {
       for (var x=-1; x<=1; x++) {
+        if (x === 0 && y === 0) continue
         socket.emit('tile', { x:x, y:y })
       }
     }
-    //socket.emit('tile', { x:0, y:0 })
 
   })}, 0)
 
@@ -156,10 +159,6 @@
     playerOrigin.copy(playerMesh.root.position)
     cameraTarget.copy(playerOrigin).setY(50)
 
-    // set initial player position.
-    //playerMesh.root.position.x = 0
-    //playerMesh.root.position.z = 0
-
     var baseCharacter = new THREE.MD2CharacterComplex()
     baseCharacter.scale = 1
 
@@ -198,6 +197,34 @@
     */
   }
 
+  function start() {
+    // wait for 1st tile.
+    if (hData[0] !== undefined && hData[0][0] !== undefined) {
+      // find highest central cell (on tile[0][0]).
+      var hc  = high_cell()
+      var pos = _to_hex(hc.x * 2, hc.y * 2)
+
+      // set player start position (highest cell near x:7, y:7).
+      playerMesh.root.position.x = pos.x
+      playerMesh.root.position.z = -pos.y
+      // set player elevation.
+      var ty = hData[hc.x][hc.y]
+      playerMesh.root.position.y = (ty * (ty * (1.1 * 0.02 * el))) + 24
+
+      // show the first tile.
+      //for (var i=0; i<5; i++) {
+      //  if (scene.children[i] instanceof THREE.Mesh) {
+      //    scene.children[i].visible = true; break
+      //  }
+      //}
+
+      // start
+      animate()
+    } else setTimeout(function() {
+      start()
+    }, 10)
+  }
+
   function animate() {
     requestAnimationFrame(animate)
     update()
@@ -208,9 +235,13 @@
     var delta = clock.getDelta()
     playerMesh.update(delta)
 
+    TWEEN.update()
+    stats.update()
+
     cell = get_grid_coord(16, false)
     if (cell.x !== last_cell.x || cell.y !== last_cell.y) {
       var ty = hData[cell.x][cell.y]
+      //console.log('cell: x=' +cell.x+ ', y=' +cell.y+ ', elevation=' +ty)
       playerPosY = ty * (ty * (1.1 * 0.02 * el)) + 24
     }
 
@@ -229,9 +260,6 @@
     if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
       refresh_vbo(tile)
     }
-
-    TWEEN.update()
-    stats.update()
 
     // camera follows our player.
     var matrix = new THREE.Matrix4().copy(playerMesh.root.matrix)
@@ -431,6 +459,42 @@
       //console.log('added: %s', tile_id, tile)
     } else setTimeout(function() {
       scene_add_tile(tile_id)
-    }, Math.floor(Math.random() * 15) + 30)
+    }, Math.floor(Math.random() * 10) + 10)
+  }
+
+  function high_cell() {
+    var min = Infinity
+      , max = -Infinity
+      , s = []
+
+    for (var y=6; y<=8; y++) {
+      for (var x=6; x<=8; x++) {
+        var h = hData[x][y]
+        s.push(h)
+        if (h > 0) {
+          min = h < min ? h : min
+          max = h > max ? h : max
+        }
+      }
+    }
+
+    if (s[4] === max)       // center cell
+      return { x:7, y:7 }
+    else if (s[3] === max)  // center left
+      return { x:6, y:7 }
+    else if (s[5] === max)  // center right
+      return { x:8, y:7 }
+    else if (s[1] === max)  // lower center
+      return { x:7, y:6 }
+    else if (s[7] === max)  // upper center
+      return { x:7, y:8 }
+    else if (s[6] === max)  // NW corner
+      return { x:6, y:8 }
+    else if (s[8] === max)  // NE corner
+      return { x:8, y:8 }
+    else if (s[0] === max)  // SW corner
+      return { x:6, y:6 }
+    else if (s[2] === max)  // SE corner
+      return { x:8, y:6 }
   }
 
