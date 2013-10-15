@@ -81,6 +81,7 @@
     , heading_el
     , hData = []
     , playerPosY = 0
+    , playerAdj
 
   function init() {
     WIDTH  = window.innerWidth
@@ -210,24 +211,18 @@
     cell = get_grid_coord(16, false)
     if (cell.x !== last_cell.x || cell.y !== last_cell.y) {
       var ty = hData[cell.x][cell.y]
-      //var m = 'hex: ' + cell.x + ', ' + cell.y + ' [ ' + ty + ' ]'
-      //console.log(m)
       playerPosY = ty * (ty * (1.1 * 0.02 * el)) + 24
     }
 
     // player elevation adjustment.
     if (playerMesh.root.position.y !== playerPosY) {
-      var adj = Math.abs(playerMesh.root.position.y - playerPosY) * 0.1
-      if (Math.abs(playerMesh.root.position.y - playerPosY) < adj) {
-        // align
-        playerMesh.root.position.y = playerPosY
-      } else if (playerMesh.root.position.y < playerPosY) {
-        // lift
-        playerMesh.root.position.y += adj
-      } else if (playerMesh.root.position.y > playerPosY) {
-        // sink
-        playerMesh.root.position.y -= adj
-      }
+      playerAdj = Math.abs(playerMesh.root.position.y - playerPosY) * 0.1
+      if (Math.abs(playerMesh.root.position.y - playerPosY) < playerAdj)      
+        playerMesh.root.position.y = playerPosY        // align
+      else if (playerMesh.root.position.y < playerPosY)      
+        playerMesh.root.position.y += playerAdj        // lift by 10%
+      else if (playerMesh.root.position.y > playerPosY)      
+        playerMesh.root.position.y -= playerAdj        // sink by 10%
     }
 
     tile = get_grid_coord(16, true)
