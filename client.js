@@ -39,7 +39,6 @@
     socket = io.connect()
 
     ss(socket).on('tile', function(stream, pos) {
-      //console.log(stream.toString())
       build_terrain(stream, pos.x, pos.y)
     })
 
@@ -49,7 +48,7 @@
     init()
     start()
 
-    // request some terrain tiles (initial 3x3 grid).
+    // request more terrain tiles (3x3 grid).
     for (var y=-1; y<=1; y++) {
       for (var x=-1; x<=1; x++) {
         if (x === 0 && y === 0) continue
@@ -65,6 +64,10 @@
     , camera
     , renderer
     , container
+    , inset
+    , inset_scene
+    , inset_camera
+    , inset_renderer
     , stats
     , WIDTH
     , HEIGHT
@@ -93,9 +96,6 @@
     scene = new THREE.Scene()
     if (fog) scene.fog = new THREE.Fog(0x00090f, 0, 2000, 8000)
 
-    // align to hex edge.
-    //scene.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI / 6))
-
     // lights.
     scene.add(new THREE.AmbientLight(0x20202f))
     var light = new THREE.DirectionalLight(0xffffff, 3.5)
@@ -105,8 +105,6 @@
 
     // camera.
     camera = new THREE.PerspectiveCamera(40, WIDTH / HEIGHT, 0.1, 10000)
-    //camera.position.set(-300, 100, -500)
-    //camera.lookAt(scene.position)
 
     // renderer.
     renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -116,14 +114,31 @@
     // FPS graph.
     stats = new Stats()
     stats.domElement.style.position = 'absolute'
-    stats.domElement.style.top = '0px'
-    stats.domElement.style.left = '0px'
+    stats.domElement.style.top = '6px'
+    stats.domElement.style.left = '6px'
     stats.domElement.style.zIndex = '99'
     document.body.appendChild(stats.domElement)
 
     container = document.createElement('div')
     container.appendChild(renderer.domElement)
     document.body.appendChild(container)
+
+    // inset compass.
+    inset_scene = new THREE.Scene()
+    inset = document.createElement('div')
+    inset.style.position = 'absolute'
+    inset.style.width  = '100px'
+    inset.style.height = '40px'
+    inset.style.top   = '16px'
+    inset.style.right = '6px'
+    inset.style.zIndex = '90'
+    inset_renderer = new THREE.CanvasRenderer()
+    inset_renderer.setSize(100, 40)
+    inset.appendChild(inset_renderer.domElement)
+    document.body.appendChild(inset)
+    inset_camera = new THREE.PerspectiveCamera(50, 100 / 40, 1, 1000)
+    inset_camera.up = camera.up // important!
+    inset_scene.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 10, 0xbada55))
 
     // events.
     window.addEventListener('resize', onWindowResize, false)
@@ -154,7 +169,8 @@
 
     playerMesh = new THREE.MD2CharacterComplex()
     playerMesh.scale = 1
-    playerMesh.bodyOrientation = Math.PI  // face North !!
+    // turn player to face hexagonal "North"
+    playerMesh.bodyOrientation = Math.PI - Math.PI / 6
     playerMesh.controls = playerControls
     playerOrigin.copy(playerMesh.root.position)
     cameraTarget.copy(playerOrigin).setY(50)
@@ -179,22 +195,17 @@
 
     baseCharacter.loadParts(configOgro)
 
-    /**
     // heading display.
     heading_el = document.createElement('div')
     heading_el.style.position  = 'absolute'
-    heading_el.style.width = '200px'
-    heading_el.style.top = '0px'
-    heading_el.style.left = (WIDTH / 2).toString() + 'px'
+    heading_el.style.width = '100px'
+    heading_el.style.top   = '6px'
+    heading_el.style.right = '6px'
     heading_el.style.zIndex = '100'
-    heading_el.style.font = 'italic bold 12px verdana'
+    heading_el.style.font = 'normal 10px verdana'
+    heading_el.style.textAlign = 'center'
     heading_el.style.color = '#CCC'
     document.body.appendChild(heading_el)
-
-    var axis = new THREE.AxisHelper(100)
-    axis.position.setY(T * 1.2)
-    scene.add(axis)
-    */
   }
 
   function start() {
@@ -211,23 +222,22 @@
       var ty = hData[hc.x][hc.y]
       playerMesh.root.position.y = (ty * (ty * (1.1 * 0.02 * el))) + 24
 
-      // show the first tile.
-      //for (var i=0; i<5; i++) {
-      //  if (scene.children[i] instanceof THREE.Mesh) {
-      //    scene.children[i].visible = true; break
-      //  }
-      //}
-
-      // start
-      animate()
-    } else setTimeout(function() {
-      start()
-    }, 10)
+      animate()  // now start the main loop
+    } else setTimeout(function() { start() }, 10)
   }
 
   function animate() {
     requestAnimationFrame(animate)
     update()
+
+    // inset compass.
+    var ang = playerMesh.bodyOrientation + Math.PI / 6
+    inset_camera.position.setX(Math.cos(ang))
+    inset_camera.position.setZ(Math.sin(ang))
+    inset_camera.position.setLength(150)
+    inset_camera.position.setY(11)
+    inset_camera.lookAt(inset_scene.position)
+
     render()
   }
 
@@ -264,7 +274,6 @@
     // camera follows our player.
     var matrix = new THREE.Matrix4().copy(playerMesh.root.matrix)
     matrix.setPosition(playerOrigin)
-    //var offset = new THREE.Vector3(0, 100, -300).applyAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI / 6)
     var offset = new THREE.Vector3(0, 100, -300)
     var cameraOffset = offset.applyMatrix4(matrix)
 
@@ -282,20 +291,21 @@
     last_cell = cell
     last_tile = tile
 
-    /**
     // player heading.
     var q = playerMesh.root.quaternion
-      , pVec = new THREE.Vector3( 1, 0, 0 ).applyQuaternion( q )
+    // adjustment to calibrate hexagonal "North"
+    var pVec = new THREE.Vector3(-1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 6)
+    pVec.applyQuaternion(q)
     heading = Math.atan2(pVec.z, pVec.x)
     heading *= 180 / Math.PI
     heading = heading > 0 ? heading : heading + 360
     heading = Math.floor(heading % 360)
-    heading_el.innerText = 'Heading: ' + heading
-    */
+    heading_el.innerText = heading + ' degree' + (heading == 1 ? '' : 's')
   }
 
   function render() {
     renderer.render(scene, camera)
+    inset_renderer.render(inset_scene, inset_camera)
   }
 
   function onWindowResize() {
@@ -429,6 +439,8 @@
   function refresh_vbo(c) {
     console.log('tile: '+(c.x<0?c.x:' '+c.x)+', '+(c.y<0?c.y:' '+c.y))
 
+    // TODO: find a more efficient way to pre-fetch tiles..
+
     // manage the tile cache.
     for (var sy=c.y+2; sy>=c.y-2; sy--) {
       for (var sx=c.x-2; sx<=c.x+2; sx++) {
@@ -456,7 +468,6 @@
     var tile = tile_cache.get(tile_id)
     if (tile !== undefined) {
       scene.add(tile)
-      //console.log('added: %s', tile_id, tile)
     } else setTimeout(function() {
       scene_add_tile(tile_id)
     }, Math.floor(Math.random() * 10) + 10)
