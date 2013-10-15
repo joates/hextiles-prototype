@@ -25,8 +25,8 @@
 
     client.on('tile', function(data) {
       var tx = data.x || 0, ty = data.y || 0
-      if (tilemap[tx] == undefined) tilemap[tx] = []
-      if (tilemap[tx][ty] == undefined)
+      if (tilemap[tx] === undefined) tilemap[tx] = []
+      if (tilemap[tx][ty] === undefined)
         tilemap[tx][ty] = new Tile().size(16).addNoise().addBlur()
       // send tile data (heightmap stream).
       ss(client).emit('tile', tilemap[tx][ty].data, { x:tx, y:ty })

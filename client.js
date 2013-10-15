@@ -52,6 +52,7 @@
         socket.emit('tile', { x:x, y:y })
       }
     }
+    //socket.emit('tile', { x:0, y:0 })
 
   })}, 0)
 
@@ -66,7 +67,6 @@
     , HEIGHT
     , clock = new THREE.Clock()
     , cameraTarget = new THREE.Vector3()
-    , player
     , playerMesh
     , playerSkin = 11
     , playerOrigin = new THREE.Vector3()
@@ -76,6 +76,11 @@
     , fog = true
     , cell = { x:0, y:0 }
     , last_cell = cell
+    , tile = { x:0, y:0 }
+    , last_tile = tile
+    , heading_el
+    , hData = []
+    , playerPosY = 0
 
   function init() {
     WIDTH  = window.innerWidth
@@ -83,7 +88,6 @@
 
     scene = new THREE.Scene()
     if (fog) scene.fog = new THREE.Fog(0x00090f, 0, 2000, 8000)
-    scene.add(player)
 
     // align to hex edge.
     //scene.applyMatrix(new THREE.Matrix4().makeRotationY(-Math.PI / 6))
@@ -97,8 +101,8 @@
 
     // camera.
     camera = new THREE.PerspectiveCamera(40, WIDTH / HEIGHT, 0.1, 10000)
-    camera.position.set(-300, 100, -500)
-    camera.lookAt(scene.position)
+    //camera.position.set(-300, 100, -500)
+    //camera.lookAt(scene.position)
 
     // renderer.
     renderer = new THREE.WebGLRenderer({ antialias: true })
@@ -146,9 +150,14 @@
 
     playerMesh = new THREE.MD2CharacterComplex()
     playerMesh.scale = 1
+    playerMesh.bodyOrientation = Math.PI  // face North !!
     playerMesh.controls = playerControls
     playerOrigin.copy(playerMesh.root.position)
     cameraTarget.copy(playerOrigin).setY(50)
+
+    // set initial player position.
+    //playerMesh.root.position.x = 0
+    //playerMesh.root.position.z = 0
 
     var baseCharacter = new THREE.MD2CharacterComplex()
     baseCharacter.scale = 1
@@ -166,14 +175,26 @@
       gyro.add(camera)
 
       playerMesh.root.add(gyro)
-
-      // set initial player position.
-      playerMesh.root.position.x = 0
-      playerMesh.root.position.y = T * 1.2  /* TODO: not accurate */
-      playerMesh.root.position.z = 0
     }
 
     baseCharacter.loadParts(configOgro)
+
+    /**
+    // heading display.
+    heading_el = document.createElement('div')
+    heading_el.style.position  = 'absolute'
+    heading_el.style.width = '200px'
+    heading_el.style.top = '0px'
+    heading_el.style.left = (WIDTH / 2).toString() + 'px'
+    heading_el.style.zIndex = '100'
+    heading_el.style.font = 'italic bold 12px verdana'
+    heading_el.style.color = '#CCC'
+    document.body.appendChild(heading_el)
+
+    var axis = new THREE.AxisHelper(100)
+    axis.position.setY(T * 1.2)
+    scene.add(axis)
+    */
   }
 
   function animate() {
@@ -186,9 +207,33 @@
     var delta = clock.getDelta()
     playerMesh.update(delta)
 
-    cell = get_tile_coord(16)
-    if (cell.x !== last_cell.x ||
-        cell.y !== last_cell.y) refresh_vbo(cell)
+    cell = get_grid_coord(16, false)
+    if (cell.x !== last_cell.x || cell.y !== last_cell.y) {
+      var ty = hData[cell.x][cell.y]
+      //var m = 'hex: ' + cell.x + ', ' + cell.y + ' [ ' + ty + ' ]'
+      //console.log(m)
+      playerPosY = ty * (ty * (1.1 * 0.02 * el)) + 24
+    }
+
+    // player elevation adjustment.
+    if (playerMesh.root.position.y !== playerPosY) {
+      var adj = Math.abs(playerMesh.root.position.y - playerPosY) * 0.1
+      if (Math.abs(playerMesh.root.position.y - playerPosY) < adj) {
+        // align
+        playerMesh.root.position.y = playerPosY
+      } else if (playerMesh.root.position.y < playerPosY) {
+        // lift
+        playerMesh.root.position.y += adj
+      } else if (playerMesh.root.position.y > playerPosY) {
+        // sink
+        playerMesh.root.position.y -= adj
+      }
+    }
+
+    tile = get_grid_coord(16, true)
+    if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
+      refresh_vbo(tile)
+    }
 
     TWEEN.update()
     stats.update()
@@ -212,6 +257,18 @@
     camera.lookAt(cameraTarget)
 
     last_cell = cell
+    last_tile = tile
+
+    /**
+    // player heading.
+    var q = playerMesh.root.quaternion
+      , pVec = new THREE.Vector3( 1, 0, 0 ).applyQuaternion( q )
+    heading = Math.atan2(pVec.z, pVec.x)
+    heading *= 180 / Math.PI
+    heading = heading > 0 ? heading : heading + 360
+    heading = Math.floor(heading % 360)
+    heading_el.innerText = 'Heading: ' + heading
+    */
   }
 
   function render() {
@@ -302,6 +359,19 @@
   }
 
   function build_terrain(data, tx, ty) {
+    var ts = Math.floor(Math.sqrt(data.length))
+
+    // store a heightmap.
+    for (var j=0; j<ts; j++) {
+      for (var i=0; i<ts; i++) {
+        var ix  = tx * ts + i
+          , iy  = ty * ts + j
+          , idx =  j * ts + i
+        if (hData[ix] === undefined) hData[ix] = []
+        hData[ix][iy] = data[idx]
+      }
+    }
+
     var g = Hex_Geo(data, el)
       , g = Hex_VBO(g)
       , m = new THREE.MeshPhongMaterial( {
@@ -310,8 +380,7 @@
         side: THREE.FrontSide, vertexColors: THREE.VertexColors })
 
     if (tx !==0 || ty !== 0) {
-      var tSize = Math.sqrt(data.length)
-        , pos = _to_hex(tx * 2 * tSize, ty * 2 * tSize)
+      var pos = _to_hex(tx * 2 * ts, ty * 2 * ts)
       g.applyMatrix(new THREE.Matrix4().makeTranslation(pos.x, 0, -pos.y))
     }
 
@@ -324,10 +393,14 @@
     scene_add_tile(tile_id)
   }
 
-  function get_tile_coord(s) {
+  function get_grid_coord(s, isTile) {
     var pos = playerMesh.root.position
       , grid = _to_grid(pos.x / el, pos.z / el, R)
-    return new THREE.Vector2(Math.floor(grid.x / s), Math.floor(grid.y / s))
+
+    if (isTile !== false)
+      return new THREE.Vector2(Math.floor(grid.x / s), Math.floor(grid.y / s))
+
+    return new THREE.Vector2(grid.x, grid.y)
   }
 
   function refresh_vbo(c) {
@@ -340,6 +413,7 @@
         if (! (sy==c.y+2 && sx==c.x-2 || sx==c.x+2) ||
             ! (sy==c.y-2 && sx==c.x-2 || sx==c.x+2)) {
           var tile_id = sx.toString() + '_' + sy.toString()
+
           // outer grid (5x5)
           if (! tile_cache.has(tile_id))
             // pre-fetch a tile that may be needed soon.
@@ -362,6 +436,6 @@
       //console.log('added: %s', tile_id, tile)
     } else setTimeout(function() {
       scene_add_tile(tile_id)
-    }, Math.floor(Math.random() * 8) + 8)
+    }, Math.floor(Math.random() * 15) + 30)
   }
 
