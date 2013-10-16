@@ -25,8 +25,10 @@
     , Hex_Geo = require('./lib/Hex_Geo.js')
     , Hex_VBO = require('./lib/Hex_VBO.js')
     , LRU = require("lru-cache")
-    , cache_opts = { max: 21, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
+    , cache_opts = { max: 16, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
     , tile_cache = LRU(cache_opts)  // store most recently visited tiles.
+    , tile_fetch_queue = []
+    , update_counter = 0
 
   var R = 80
     , S = 2 * R / Math.sqrt(3)
@@ -48,11 +50,12 @@
     init()
     start()
 
-    // request more terrain tiles (3x3 grid).
+    // prime the tile_cache (3x3 grid).
     for (var y=-1; y<=1; y++) {
       for (var x=-1; x<=1; x++) {
         if (x === 0 && y === 0) continue
-        socket.emit('tile', { x:x, y:y })
+        //socket.emit('tile', { x:x, y:y })
+        tile_fetch_queue.push(x.toString()+'_'+y.toString())
       }
     }
 
@@ -84,6 +87,8 @@
     , last_cell = cell
     , tile = { x:0, y:0 }
     , last_tile = tile
+    , quadrant = 0
+    , last_dir = 0
     , heading_el
     , hData = []
     , playerPosY = 0
@@ -242,6 +247,13 @@
   }
 
   function update() {
+    var ql = tile_fetch_queue.length
+    if (update_counter % 16 === 0 && ql > 0) {
+      tile = tile_fetch_queue.shift().split('_')
+      socket.emit('tile', { x:parseInt(tile[0]), y:parseInt(tile[1]) })
+      console.log('tile request: %s, %s [1 of %d]', tile[0], tile[1], ql)
+    }
+
     var delta = clock.getDelta()
     playerMesh.update(delta)
 
@@ -251,7 +263,6 @@
     cell = get_grid_coord(16, false)
     if (cell.x !== last_cell.x || cell.y !== last_cell.y) {
       var ty = hData[cell.x][cell.y]
-      //console.log('cell: x=' +cell.x+ ', y=' +cell.y+ ', elevation=' +ty)
       playerPosY = ty * (ty * (1.1 * 0.02 * el)) + 24
     }
 
@@ -264,11 +275,6 @@
         playerMesh.root.position.y += playerAdj        // lift by 10%
       else if (playerMesh.root.position.y > playerPosY)      
         playerMesh.root.position.y -= playerAdj        // sink by 10%
-    }
-
-    tile = get_grid_coord(16, true)
-    if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
-      refresh_vbo(tile)
     }
 
     // camera follows our player.
@@ -288,9 +294,6 @@
     // Set camera rotation.
     camera.lookAt(cameraTarget)
 
-    last_cell = cell
-    last_tile = tile
-
     // player heading.
     var q = playerMesh.root.quaternion
     // adjustment to calibrate hexagonal "North"
@@ -301,6 +304,18 @@
     heading = heading > 0 ? heading : heading + 360
     heading = Math.floor(heading % 360)
     heading_el.innerText = heading + ' degree' + (heading == 1 ? '' : 's')
+
+    quadrant = Math.floor(heading / 90) + 1  // range: 1-4
+    if (quadrant !== last_dir ||
+        cell.x !== last_cell.x || cell.y !== last_cell.y) {
+      var t = get_grid_coord(16, true)
+      tilemap_update(quadrant, t)
+    }
+
+    last_cell = cell
+    last_dir  = quadrant
+
+    update_counter++
   }
 
   function render() {
@@ -423,7 +438,8 @@
 
     var tile_id = tx.toString() + '_' + ty.toString()
     tile_cache.set(tile_id, mesh)
-    scene_add_tile(tile_id)
+    //scene_add_tile(tile_id)
+    scene.add(mesh)
   }
 
   function get_grid_coord(s, isTile) {
@@ -437,9 +453,9 @@
   }
 
   function refresh_vbo(c) {
+    // TODO: deprecated
+    /**
     console.log('tile: '+(c.x<0?c.x:' '+c.x)+', '+(c.y<0?c.y:' '+c.y))
-
-    // TODO: find a more efficient way to pre-fetch tiles..
 
     // manage the tile cache.
     for (var sy=c.y+2; sy>=c.y-2; sy--) {
@@ -462,15 +478,19 @@
         }
       }
     }
+    */
   }
 
   function scene_add_tile(tile_id) {
+    // TODO: deprecated
+    /**
     var tile = tile_cache.get(tile_id)
     if (tile !== undefined) {
       scene.add(tile)
     } else setTimeout(function() {
       scene_add_tile(tile_id)
     }, Math.floor(Math.random() * 10) + 10)
+    */
   }
 
   function high_cell() {
@@ -507,5 +527,59 @@
       return { x:6, y:6 }
     else if (s[2] === max)  // SE corner
       return { x:8, y:6 }
+  }
+
+  function tilemap_update(q, tile) {
+    var tx = tile.x
+      , ty = tile.y
+      , tids = []
+
+    switch(q) {
+
+      case 1:
+        tids.push((tx).toString()  +'_'+(ty+1).toString())
+        tids.push((tx+1).toString()+'_'+(ty+1).toString())
+        tids.push((tx+1).toString()+'_'+(ty).toString())
+        tids.forEach(function(id) {
+          if (! tile_cache.has(id) && ! tile_queued(id))
+            tile_fetch_queue.push(id)
+        })
+        break
+
+      case 2:
+        tids.push((tx+1).toString()+'_'+(ty).toString())
+        tids.push((tx+1).toString()+'_'+(ty-1).toString())
+        tids.push((tx).toString()  +'_'+(ty-1).toString())
+        tids.forEach(function(id) {
+          if (! tile_cache.has(id) && ! tile_queued(id))
+            tile_fetch_queue.push(id)
+        })
+        break
+
+      case 3:
+        tids.push((tx).toString()  +'_'+(ty-1).toString())
+        tids.push((tx-1).toString()+'_'+(ty-1).toString())
+        tids.push((tx-1).toString()+'_'+(ty).toString())
+        tids.forEach(function(id) {
+          if (! tile_cache.has(id) && ! tile_queued(id))
+            tile_fetch_queue.push(id)
+        })
+        break
+
+      case 4:
+        tids.push((tx-1).toString()+'_'+(ty).toString())
+        tids.push((tx-1).toString()+'_'+(ty+1).toString())
+        tids.push((tx).toString()  +'_'+(ty+1).toString())
+        tids.forEach(function(id) {
+          if (! tile_cache.has(id) && ! tile_queued(id))
+            tile_fetch_queue.push(id)
+        })
+        break
+
+    }
+  }
+
+  function tile_queued(tile_id) {
+    return tile_fetch_queue[tile_id] !== undefined
   }
 
