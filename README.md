@@ -50,4 +50,4 @@ _Collisions are not implemented.. you can run on the water_
 * sound/audio, there isn't any!
 
 
-MIT Licensed.
+MIT License included where applicable.
