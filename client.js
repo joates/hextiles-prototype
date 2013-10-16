@@ -25,7 +25,7 @@
     , Hex_Geo = require('./lib/Hex_Geo.js')
     , Hex_VBO = require('./lib/Hex_VBO.js')
     , LRU = require("lru-cache")
-    , cache_opts = { max: 16, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
+    , cache_opts = { max: 14, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
     , tile_cache = LRU(cache_opts)  // store most recently visited tiles.
     , tile_fetch_queue = []
     , update_counter = 0
@@ -353,7 +353,14 @@
       tilemap_update(quadrant, t)
     }
 
+    tile = get_grid_coord(16, true)
+    if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
+      // refresh the cached order of this tile.
+      tile_cache.get(tile.x.toString()+'_'+tile.y.toString())
+    }
+
     last_cell = cell
+    last_tile = tile
     last_dir  = quadrant
 
     update_counter++
@@ -491,47 +498,6 @@
       return new THREE.Vector2(Math.floor(grid.x / s), Math.floor(grid.y / s))
 
     return new THREE.Vector2(grid.x, grid.y)
-  }
-
-  function refresh_vbo(c) {
-    // TODO: deprecated
-    /**
-    console.log('tile: '+(c.x<0?c.x:' '+c.x)+', '+(c.y<0?c.y:' '+c.y))
-
-    // manage the tile cache.
-    for (var sy=c.y+2; sy>=c.y-2; sy--) {
-      for (var sx=c.x-2; sx<=c.x+2; sx++) {
-        // exclude the 4 outer corner tiles
-        if (! (sy==c.y+2 && sx==c.x-2 || sx==c.x+2) ||
-            ! (sy==c.y-2 && sx==c.x-2 || sx==c.x+2)) {
-          var tile_id = sx.toString() + '_' + sy.toString()
-
-          // outer grid (5x5)
-          if (! tile_cache.has(tile_id))
-            // pre-fetch a tile that may be needed soon.
-            socket.emit('tile', { x:sx, y:sy })
-
-        // inner grid (3x3)
-        // fetch tile directly from cache.
-        }
-        if (sx > c.x-2 && sx < c.x+2 && sy > c.y-2 && sy < c.y+2) {
-          scene_add_tile(tile_id)
-        }
-      }
-    }
-    */
-  }
-
-  function scene_add_tile(tile_id) {
-    // TODO: deprecated
-    /**
-    var tile = tile_cache.get(tile_id)
-    if (tile !== undefined) {
-      scene.add(tile)
-    } else setTimeout(function() {
-      scene_add_tile(tile_id)
-    }, Math.floor(Math.random() * 10) + 10)
-    */
   }
 
   function high_cell() {
