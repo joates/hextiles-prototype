@@ -580,6 +580,6 @@
   }
 
   function tile_queued(tile_id) {
-    return tile_fetch_queue[tile_id] !== undefined
+    return tile_fetch_queue.indexOf(tile_id) !== -1
   }
 
