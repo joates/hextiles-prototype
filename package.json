@@ -1,6 +1,6 @@
 {
   "name": "hextiles-prototype",
-  "version": "0.0.1-dev",
+  "version": "0.0.2-dev",
   "description": "A standalone demo. Hexagonal tile server. Player character. No collisions. WASD controls.",
   "main": "server.js",
   "dependencies": {
@@ -9,10 +9,7 @@
     "simplex-noise": "~2.1.1",
     "socket.io": "~0.9.16",
     "socket.io-client": "~0.9.16",
-    "socket.io-stream": "~0.5.0",
-    "socket.io-browserify": "~0.9.6",
-    "node-uuid": "~1.4.1",
-    "extend": "~1.2.1"
+    "socket.io-stream": "~0.5.0"
   },
   "devDependencies": {
     "browserify": "~2.33.0"
@@ -26,12 +23,15 @@
   },
   "keywords": [
     "hexagon",
-    "tile",
-    "server",
+    "tile server",
+    "tile manager",
+    "tilemap",
+    "heightmap",
     "three.js",
     "3D",
-    "single",
-    "player",
+    "GPU",
+    "single player",
+    "game demo",
     "prototype"
   ],
   "author": "joates",
