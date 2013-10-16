@@ -25,7 +25,7 @@
     , Hex_Geo = require('./lib/Hex_Geo.js')
     , Hex_VBO = require('./lib/Hex_VBO.js')
     , LRU = require("lru-cache")
-    , cache_opts = { max: 14, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
+    , cache_opts = { max: 15, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
     , tile_cache = LRU(cache_opts)  // store most recently visited tiles.
     , tile_fetch_queue = []
     , update_counter = 0
@@ -248,11 +248,23 @@
   }
 
   function update() {
+    tile = get_grid_coord(16, true)
+    if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
+      // refresh the cached order of this tile.
+      tile_cache.get(tile.x.toString()+'_'+tile.y.toString())
+    }
+
     var ql = tile_fetch_queue.length
-    if (update_counter % 16 === 0 && ql > 0) {
-      tile = tile_fetch_queue.shift().split('_')
-      socket.emit('tile', { x:parseInt(tile[0]), y:parseInt(tile[1]) })
-      console.log('tile request: %s, %s [1 of %d]', tile[0], tile[1], ql)
+    if (update_counter % 16 === 0) {
+      if (ql > 0) {
+        tile = tile_fetch_queue.shift().split('_')
+        socket.emit('tile', { x:parseInt(tile[0]), y:parseInt(tile[1]) })
+        var msg = 'tile request: ' +tile[0]+ ', ' +tile[1]+ (ql === 1 ? '' : ' (' +(ql-1)+ ' in queue)')
+        console.log(msg)
+      } else {
+        // tile queue is empty..
+        scan_3x3_grid(tile.x, tile.y)
+      }
     }
 
     var delta = clock.getDelta()
@@ -351,12 +363,6 @@
         cell.x !== last_cell.x || cell.y !== last_cell.y) {
       var t = get_grid_coord(16, true)
       tilemap_update(quadrant, t)
-    }
-
-    tile = get_grid_coord(16, true)
-    if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
-      // refresh the cached order of this tile.
-      tile_cache.get(tile.x.toString()+'_'+tile.y.toString())
     }
 
     last_cell = cell
@@ -589,4 +595,17 @@
   function tile_queued(tile_id) {
     return tile_fetch_queue.indexOf(tile_id) !== -1
   }
+
+  function scan_3x3_grid(tx, ty) {
+    for (var j=ty-1; j<=ty+1; j++) {
+      for (var i=tx-1; i<=tx+1; i++) {
+        var tid = tx.toString()+'_'+ty.toString()
+        if (! tile_cache.has(tid) && ! tile_queued(tid)) {
+          tile_fetch_queue.push(tid)
+        }
+      }
+    }
+  }
+
+
 

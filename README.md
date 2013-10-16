@@ -1,4 +1,4 @@
-## hextiles-prototype (0.0.2-dev)
+## hextiles-prototype (0.0.3-dev)
 
 *Screenshot:*
 
@@ -17,6 +17,13 @@ You will need to pre-install the [three.js](http://threejs.org) library (r60 or 
 * type ```npm start``` to start the server running
 * visit ```http://localhost:8000``` in your browser to start the demo
 
-Use WASD or cursor keys to move around
+**Use WASD or cursor keys to move around**
 
-_Collisions are not implemented so you can just run through things_
+* Best performance on Chrome (solid 60FPS)
+* Firefox peformance is poor (only ~20FPS)
+* Safari is un-tested
+
+May or may not work on iPads (i haven't tried it)
+Probably won't work on other mobile devices (requires a WebGL renderer)
+
+_Collisions are not implemented.. you can run on the water_

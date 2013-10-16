@@ -1,6 +1,6 @@
 {
   "name": "hextiles-prototype",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A standalone demo. Hexagonal tile server. Player character. No collisions. WASD controls.",
   "main": "server.js",
   "dependencies": {
