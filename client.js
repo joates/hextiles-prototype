@@ -259,7 +259,7 @@
       if (ql > 0) {
         tile = tile_fetch_queue.shift().split('_')
         socket.emit('tile', { x:parseInt(tile[0]), y:parseInt(tile[1]) })
-        var msg = 'tile request: ' +tile[0]+ ', ' +tile[1]+ (ql === 1 ? '' : ' (' +(ql-1)+ ' in queue)')
+        var msg = 'tile request: ' +tile[0]+ ', ' +tile[1]+ (ql === 1 ? '' : ' (+' +(ql-1)+ ' in queue)')
         console.log(msg)
       } else {
         // tile queue is empty..

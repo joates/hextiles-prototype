@@ -41,6 +41,7 @@ _Collisions are not implemented.. you can run on the water_
 * the lighting looks great (its Phong shaded, but without the specular highlights)
 * camera follows the player (also camera position is smoothed as player turns)
 * the 4 major compass points assist/force the player into alignment when they are within 5 degrees either side of N, S, W or E. (it came to me at the end of a 20-hour hacking session, only took a few minutes to implement & i didn't plan it at all, just coded it, ran a test and it worked really well)
+* and finally, this may inspire others to create something fun.. come on! :)
 
 
 ### What could be improved..
