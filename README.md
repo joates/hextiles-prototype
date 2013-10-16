@@ -2,7 +2,7 @@
 
 *Screenshot:*
 
-![Screenshot](https://github.com/joates/hextiles-prototype/blob/master/img/screenshot.png)
+![Screenshot](https://raw.github.com/joates/hextiles-prototype/master/img/screenshot.png)
 
 You will need to pre-install the [three.js](http://threejs.org) library (r60 or better) and symlink it into the ```public``` folder so that the demo can find the files that it needs (see [index.html](public/index.html)).
 
