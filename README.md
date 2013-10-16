@@ -11,9 +11,10 @@ You will need to pre-install the [three.js](http://threejs.org) library (r60 or 
 
 ### Getting started..
 
+* get [node.js](http://nodejs.org)
 * ```npm install hextiles-prototype```
 * ```cd hextiles-prototype```
-* type ```npm install``` to download dependency modules, _you only need to do this once_ (requires [node.js](http://nodejs.org))
+* type ```npm install``` to download dependency modules, _you only need to do this once_
 * type ```npm start``` to start the server running
 * visit ```http://localhost:8000``` in your browser to start the demo
 
@@ -24,6 +25,7 @@ You will need to pre-install the [three.js](http://threejs.org) library (r60 or 
 * Safari is un-tested
 
 May or may not work on iPads (i haven't tried it)
+
 Probably won't work on other mobile devices (requires a WebGL renderer)
 
 _Collisions are not implemented.. you can run on the water_
