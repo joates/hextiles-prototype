@@ -93,6 +93,7 @@
     , hData = []
     , playerPosY = 0
     , playerAdj
+    , stickyCompassPoints
 
   function init() {
     WIDTH  = window.innerWidth
@@ -303,8 +304,48 @@
     heading *= 180 / Math.PI
     heading = heading > 0 ? heading : heading + 360
     heading = Math.floor(heading % 360)
-    heading_el.innerText = heading + ' degree' + (heading == 1 ? '' : 's')
 
+    switch(true) {
+      // implement slightly 'sticky' compass points (N, S, E + W)
+
+      case (heading < 5 || heading > 355):
+        heading_el.innerText = 'NORTH'
+        if (stickyCompassPoints) {
+          playerMesh.bodyOrientation = Math.PI - Math.PI / 6
+          setTimeout(function() { stickyCompassPoints = false }, 100)
+        }
+        break
+
+      case (heading > 85 && heading < 95):
+        heading_el.innerText = 'EAST'
+        if (stickyCompassPoints) {
+          playerMesh.bodyOrientation = Math.PI / 2 - Math.PI / 6
+          setTimeout(function() { stickyCompassPoints = false }, 100)
+        }
+        break
+
+      case (heading > 175 && heading < 185):
+        heading_el.innerText = 'SOUTH'
+        if (stickyCompassPoints) {
+          playerMesh.bodyOrientation = -Math.PI / 6
+          setTimeout(function() { stickyCompassPoints = false }, 100)
+        }
+        break
+
+      case (heading > 265 && heading < 275):
+        heading_el.innerText = 'WEST'
+        if (stickyCompassPoints) {
+          playerMesh.bodyOrientation = Math.PI + Math.PI / 3
+          setTimeout(function() { stickyCompassPoints = false }, 100)
+        }
+        break
+
+      default:
+        heading_el.innerText = heading + ' degrees'
+        stickyCompassPoints = true
+    }
+
+    // check if the tilemap needs updating.
     quadrant = Math.floor(heading / 90) + 1  // range: 1-4
     if (quadrant !== last_dir ||
         cell.x !== last_cell.x || cell.y !== last_cell.y) {
