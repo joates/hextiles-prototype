@@ -101,7 +101,7 @@
     HEIGHT = window.innerHeight
 
     scene = new THREE.Scene()
-    if (fog) scene.fog = new THREE.Fog(0x00090f, 0, 2000, 8000)
+    if (fog) scene.fog = new THREE.Fog(0x00090f, 0, 3000, 8000)
 
     // lights.
     scene.add(new THREE.AmbientLight(0x20202f))
