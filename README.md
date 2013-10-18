@@ -6,7 +6,7 @@ _trying a new terrain layout design with connected hexagonal cells and ramps_
 ![Screenshot](https://raw.github.com/joates/hextiles-prototype/master/img/screenshot2.png)
 
 **Alternative Screenshot: (detached-hextiles branch)**
-_checkout the [detached-hextiles](https://github.com/joates/hextiles-prototype/tree/detached-hexagons) for the original implementation_
+_checkout the [detached-hextiles](https://github.com/joates/hextiles-prototype/tree/detached-hexagons) branch for the original implementation_
 
 ![Screenshot](https://raw.github.com/joates/hextiles-prototype/master/img/screenshot.png)
 
