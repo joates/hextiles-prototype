@@ -15,7 +15,7 @@
     "browserify": "~2.33.0"
   },
   "scripts": {
-    "start": "node build.js && node server.js"
+    "start": "node doBuild && node startServer"
   },
   "repository": {
     "type": "git",
