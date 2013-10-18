@@ -28,6 +28,7 @@
     , cache_opts = { max: 15, dispose: function(key, n) { n.geometry.dispose(); scene.remove(n) } }
     , tile_cache = LRU(cache_opts)  // store most recently visited tiles.
     , tile_fetch_queue = []
+    , prefetch = true
     , update_counter = 0
 
   var R = 80
@@ -106,7 +107,7 @@
     scene.add(new THREE.AmbientLight(0x20202f))
     var light = new THREE.DirectionalLight(0xffffff, 3.5)
     //light.position.set(0, 2, -1).normalize()
-    light.position.set(-60, 200, -30)
+    light.position.set(-3, 10, -1.5).normalize()
     scene.add(light)
 
     // camera.
@@ -117,39 +118,9 @@
     renderer.setSize(WIDTH, HEIGHT)
     if (fog) renderer.setClearColor(scene.fog.color, 0.8)
 
-    // FPS graph.
-    stats = new Stats()
-    stats.domElement.style.position = 'absolute'
-    stats.domElement.style.top = '6px'
-    stats.domElement.style.left = '6px'
-    stats.domElement.style.zIndex = '99'
-    document.body.appendChild(stats.domElement)
-
     container = document.createElement('div')
     container.appendChild(renderer.domElement)
     document.body.appendChild(container)
-
-    // inset compass.
-    inset_scene = new THREE.Scene()
-    inset = document.createElement('div')
-    inset.style.position = 'absolute'
-    inset.style.width  = '100px'
-    inset.style.height = '40px'
-    inset.style.top   = '16px'
-    inset.style.right = '6px'
-    inset.style.zIndex = '90'
-    inset_renderer = new THREE.CanvasRenderer()
-    inset_renderer.setSize(100, 40)
-    inset.appendChild(inset_renderer.domElement)
-    document.body.appendChild(inset)
-    inset_camera = new THREE.PerspectiveCamera(50, 100 / 40, 1, 1000)
-    inset_camera.up = camera.up // important!
-    inset_scene.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 10, 0xbada55))
-
-    // events.
-    window.addEventListener('resize', onWindowResize, false)
-    document.addEventListener('keydown', onKeyDown, false)
-    document.addEventListener('keyup', onKeyUp, false);
 
     // CHARACTER
     var configOgro = {
@@ -201,6 +172,14 @@
 
     baseCharacter.loadParts(configOgro)
 
+    // FPS graph.
+    stats = new Stats()
+    stats.domElement.style.position = 'absolute'
+    stats.domElement.style.top = '6px'
+    stats.domElement.style.left = '6px'
+    stats.domElement.style.zIndex = '99'
+    document.body.appendChild(stats.domElement)
+
     // heading display.
     heading_el = document.createElement('div')
     heading_el.style.position  = 'absolute'
@@ -212,6 +191,28 @@
     heading_el.style.textAlign = 'center'
     heading_el.style.color = '#CCC'
     document.body.appendChild(heading_el)
+
+    // inset compass.
+    inset_scene = new THREE.Scene()
+    inset = document.createElement('div')
+    inset.style.position = 'absolute'
+    inset.style.width  = '100px'
+    inset.style.height = '40px'
+    inset.style.top   = '16px'
+    inset.style.right = '6px'
+    inset.style.zIndex = '90'
+    inset_renderer = new THREE.CanvasRenderer()
+    inset_renderer.setSize(100, 40)
+    inset.appendChild(inset_renderer.domElement)
+    document.body.appendChild(inset)
+    inset_camera = new THREE.PerspectiveCamera(50, 100 / 40, 1, 1000)
+    inset_camera.up = camera.up // important!
+    inset_scene.add(new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 10, 0xbada55))
+
+    // events.
+    window.addEventListener('resize', onWindowResize, false)
+    document.addEventListener('keydown', onKeyDown, false)
+    document.addEventListener('keyup', onKeyUp, false);
   }
 
   function start() {
@@ -248,6 +249,9 @@
   }
 
   function update() {
+    var delta = clock.getDelta()
+    playerMesh.update(delta)
+
     tile = get_grid_coord(16, true)
     if (tile.x !== last_tile.x || tile.y !== last_tile.y) {
       // refresh the cached order of this tile.
@@ -256,25 +260,25 @@
 
     var ql = tile_fetch_queue.length
     if (update_counter % 16 === 0) {
-      if (ql > 0) {
-        tile = tile_fetch_queue.shift().split('_')
-        socket.emit('tile', { x:parseInt(tile[0]), y:parseInt(tile[1]) })
-        var msg = 'tile request: ' +tile[0]+ ', ' +tile[1]+ (ql === 1 ? '' : ' (+' +(ql-1)+ ' in queue)')
-        console.log(msg)
-      } else {
-        // tile queue is empty..
-        scan_3x3_grid(tile.x, tile.y)
+      if (prefetch === true) {
+        if (ql > 0) {
+          tile = tile_fetch_queue.shift().split('_')
+          socket.emit('tile', { x:parseInt(tile[0]), y:parseInt(tile[1]) })
+          var msg = 'tile request: ' +tile[0]+ ', ' +tile[1]+ (ql === 1 ? '' : ' (+' +(ql-1)+ ' in queue)')
+          console.log(msg)
+        } else {
+          // tile queue is empty..
+          scan_3x3_grid(tile.x, tile.y)
+        }
       }
     }
-
-    var delta = clock.getDelta()
-    playerMesh.update(delta)
 
     TWEEN.update()
     stats.update()
 
     cell = get_grid_coord(16, false)
     if (cell.x !== last_cell.x || cell.y !== last_cell.y) {
+      //console.log('cell: ' +cell.x+ ', ' +cell.y)
       var ty = hData[cell.x][cell.y]
       playerPosY = ty * (ty * (1.1 * 0.02 * el)) + 24
     }
@@ -462,6 +466,7 @@
 
   function build_terrain(data, tx, ty) {
     var ts = Math.floor(Math.sqrt(data.length))
+      , g, m
 
     // store a heightmap.
     for (var j=0; j<ts; j++) {
@@ -474,13 +479,15 @@
       }
     }
 
-    var g = Hex_Geo(data, el)
-      , g = Hex_VBO(g)
-      , m = new THREE.MeshPhongMaterial( {
-        color: 0xaaaaaa, ambient: 0x332244,
-        emissive: 0x004400, specular: 0x101020, shininess: 4,
-        side: THREE.FrontSide, vertexColors: THREE.VertexColors })
+    g = Hex_Geo(data, el)
+    g = Hex_VBO(g)
+    m = new THREE.MeshPhongMaterial( {
+      color: 0xaaaaaa, ambient: 0x332244,
+      emissive: 0x004400, specular: 0x101020, shininess: 4,
+      side: THREE.FrontSide, vertexColors: THREE.VertexColors
+    })
 
+    // translate tile into position.
     if (tx !==0 || ty !== 0) {
       var pos = _to_hex(tx * 2 * ts, ty * 2 * ts)
       g.applyMatrix(new THREE.Matrix4().makeTranslation(pos.x, 0, -pos.y))
@@ -492,7 +499,6 @@
 
     var tile_id = tx.toString() + '_' + ty.toString()
     tile_cache.set(tile_id, mesh)
-    //scene_add_tile(tile_id)
     scene.add(mesh)
   }
 
@@ -606,6 +612,4 @@
       }
     }
   }
-
-
 
